@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Anual · Contratos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@300;400;600;800&display=swap');
+
+:root {
+  --bg:    #08090d;
+  --bg2:   #0e1118;
+  --card:  #111520;
+  --card2: #161c2a;
+  --border:#1c2438;
+  --a1:    #f97316;   /* orange – primary */
+  --a2:    #3b82f6;   /* blue */
+  --a3:    #10b981;   /* green */
+  --a4:    #a855f7;   /* purple */
+  --a5:    #ef4444;   /* red */
+  --a6:    #eab308;   /* yellow */
+  --text:  #e2e8f0;
+  --muted: #4b5880;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* noise grain */
+body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:0.6}
+
+/* ── header ─────────────────────────────── */
+.header{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:24px 36px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(249,115,22,.06) 0%,transparent 60%)}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-icon{width:36px;height:36px;background:var(--a1);border-radius:8px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.brand h1{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.3px}
+.brand p{font-size:12px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+
+/* ── year selector ──────────────────────── */
+.year-nav{position:relative;z-index:2;padding:20px 36px;border-bottom:1px solid var(--border);background:var(--bg2)}
+.year-nav-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.year-pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{font-family:var(--mono);font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;transition:.18s;user-select:none}
+.pill:hover{border-color:var(--a1);color:var(--a1)}
+.pill.active{background:var(--a1);border-color:var(--a1);color:#fff;box-shadow:0 0 16px rgba(249,115,22,.35)}
+
+/* ── main grid ──────────────────────────── */
+main{position:relative;z-index:1;padding:28px 36px;display:grid;gap:20px;max-width:1600px;margin:0 auto}
+
+/* ── kpi row ────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden;transition:.2s}
+.kpi:hover{border-color:var(--kc,var(--a1));transform:translateY(-2px)}
+.kpi::before{content:'';position:absolute;inset:0 0 auto 0;height:2px;background:var(--kc,var(--a1))}
+.kpi-lbl{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+.kpi-val{font-family:var(--mono);font-size:36px;font-weight:700;color:var(--kc,var(--a1));line-height:1.1;margin:8px 0 4px}
+.kpi-sub{font-size:12px;color:var(--muted)}
+
+/* ── charts grid ────────────────────────── */
+.charts-grid{display:grid;gap:20px}
+.row-2{grid-template-columns:1fr 1fr}
+.row-3{grid-template-columns:1.2fr 1fr 1fr}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px}
+.card-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px}
+.card-head{font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px}
+.chart-box{position:relative}
+
+/* ── top list ───────────────────────────── */
+.top-list{list-style:none;display:flex;flex-direction:column;gap:11px}
+.top-item{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:10px}
+.rank{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center}
+.rank.r1{color:#fbbf24;font-weight:700}
+.rank.r2{color:#94a3b8;font-weight:700}
+.rank.r3{color:#c97c4c;font-weight:700}
+.bar-wrap{display:flex;flex-direction:column;gap:3px;min-width:0}
+.bar-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-bg{height:4px;background:var(--card2);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--bc1,var(--a1)),var(--bc2,var(--a4)));transition:width .8s cubic-bezier(.4,0,.2,1)}
+.bar-val{font-family:var(--mono);font-size:12px;color:var(--a1);text-align:right;flex-shrink:0;min-width:36px}
+
+/* ── estados list ───────────────────────── */
+.estado-list{display:flex;flex-direction:column;gap:10px}
+.estado-row{display:grid;grid-template-columns:12px 100px 1fr 60px;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.estado-name{font-size:12px;color:var(--text)}
+.estado-bg{height:5px;background:var(--card2);border-radius:3px;overflow:hidden}
+.estado-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.estado-val{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+
+/* ── pago cards ─────────────────────────── */
+.pago-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pago-card{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.pago-icon{font-size:20px;margin-bottom:6px}
+.pago-name{font-size:11px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)}
+.pago-val{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--a3)}
+
+/* ── year overview chart ─────────────────── */
+.overview-card{grid-column:1/-1}
+
+/* anim */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.kpi,.card{animation:fadeUp .4s ease both}
+.kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+
+@media(max-width:1100px){.row-3{grid-template-columns:1fr 1fr}.kpi-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){main{padding:16px}.row-2,.row-3{grid-template-columns:1fr}.kpi-row{grid-template-columns:1fr 1fr}.header,.year-nav{padding:16px}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-icon">◈</div>
+    <div>
+      <h1>CONTRATOS · DASHBOARD ANUAL</h1>
+      <p>15,252 registros · 2011 – 2026 · Selecciona un año</p>
+    </div>
+  </div>
+</header>
+
+<div class="year-nav">
+  <div class="year-nav-label">Año de instalación</div>
+  <div class="year-pills" id="pills"></div>
+</div>
+
+<main id="main-content">
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi" style="--kc:var(--a1)">
+      <div class="kpi-lbl">Contratos</div>
+      <div class="kpi-val" id="kpi-contratos">—</div>
+      <div class="kpi-sub" id="kpi-contratos-sub"></div>
+    </div>
+    <div class="kpi" style="--kc:var(--a3)">
+      <div class="kpi-lbl">Clientes únicos</div>
+      <div class="kpi-val" id="kpi-clientes">—</div>
+      <div class="kpi-sub">clientes registrados</div>
+    </div>
+    <div class="kpi" style="--kc:var(--a2)">
+      <div class="kpi-lbl">Activos</div>
+      <div class="kpi-val" id="kpi-activos">—</div>
+      <div class="kpi-sub" id="kpi-activos-pct"></div>
+    </div>
+    <div class="kpi" style="--kc:var(--a5)">
+      <div class="kpi-lbl">Terminados</div>
+      <div class="kpi-val" id="kpi-terminados">—</div>
+      <div class="kpi-sub" id="kpi-terminados-pct"></div>
+    </div>
+  </div>
+
+  <!-- Evolución general -->
+  <div class="charts-grid">
+    <div class="card overview-card">
+      <div class="card-title">Tendencia general</div>
+      <div class="card-head">Contratos por año (todos los años)</div>
+      <div class="chart-box" style="height:160px">
+        <canvas id="chart-overview"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 1: estados + planes + instaladores -->
+  <div class="charts-grid row-3">
+
+    <!-- Estados -->
+    <div class="card">
+      <div class="card-title">Distribución</div>
+      <div class="card-head">Estado de contratos</div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:16px;align-items:center">
+        <div style="height:130px;position:relative"><canvas id="chart-estado"></canvas></div>
+        <div class="estado-list" id="estado-list"></div>
+      </div>
+    </div>
+
+    <!-- Top Planes -->
+    <div class="card">
+      <div class="card-title">Ranking</div>
+      <div class="card-head">Top 5 Planes</div>
+      <ul class="top-list" id="list-planes"></ul>
+    </div>
+
+    <!-- Top Instaladores -->
+    <div class="card">
+      <div class="card-title">Ranking</div>
+      <div class="card-head">Top Instaladores</div>
+      <ul class="top-list" id="list-inst"></ul>
+    </div>
+  </div>
+
+  <!-- Row 2: servidores + formas de pago -->
+  <div class="charts-grid row-2">
+
+    <!-- Top Servidores -->
+    <div class="card">
+      <div class="card-title">Ranking</div>
+      <div class="card-head">Top 5 Servidores</div>
+      <ul class="top-list" id="list-serv"></ul>
+    </div>
+
+    <!-- Formas de pago -->
+    <div class="card">
+      <div class="card-title">Métodos</div>
+      <div class="card-head">Forma de Pago</div>
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:16px;align-items:center">
+        <div style="height:140px;position:relative"><canvas id="chart-pago"></canvas></div>
+        <div class="pago-grid" id="pago-detail" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const DATA = {"2011":{"contratos":831,"clientes":820,"estados":{"Terminado":680,"Activo":54,"Pendiente":44,"Suspendido":36,"Cortado":17},"top_planes":[{"nombre":"HOME PLUS RADIO $ 25.00","valor":324},{"nombre":"HOME BÁSICO RADIO $ 21","valor":153},{"nombre":"HOME MEGA FIBRA $23","valor":127},{"nombre":"HOME PREMIUM RADIO $ 30","valor":45},{"nombre":"HOME VIP RADIO $ 35","valor":28}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":57},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":29},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":21},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":13}],"top_servidores":[{"nombre":"PRINCIPAL","valor":663},{"nombre":"CORTADOS_SIN SERVIDOR","valor":62},{"nombre":"SERVER PPPOE VLAN 10","valor":13},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":11},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":7}],"top_pago":[{"nombre":"Oficina","valor":468},{"nombre":"Débito","valor":216},{"nombre":"Domicilio","valor":142}]},"2012":{"contratos":567,"clientes":563,"estados":{"Terminado":427,"Activo":82,"Suspendido":26,"Cortado":23,"Pendiente":9},"top_planes":[{"nombre":"HOME BÁSICO RADIO $ 21","valor":182},{"nombre":"HOME PLUS RADIO $ 25.00","valor":150},{"nombre":"HOME MEGA FIBRA $23","valor":69},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":32},{"nombre":"HOME VIP RADIO $ 35","valor":17}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":65},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":26},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":23},{"nombre":"MARINA ESTACIO VELEZ","valor":8}],"top_servidores":[{"nombre":"PRINCIPAL","valor":407},{"nombre":"CORTADOS_SIN SERVIDOR","valor":22},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":19},{"nombre":"SERVER PPPOE VLAN 10","valor":18},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":16}],"top_pago":[{"nombre":"Débito","valor":259},{"nombre":"Oficina","valor":168},{"nombre":"Domicilio","valor":19}]},"2013":{"contratos":570,"clientes":567,"estados":{"Terminado":445,"Activo":71,"Cortado":33,"Suspendido":20,"Pendiente":1},"top_planes":[{"nombre":"HOME BÁSICO RADIO $ 21","valor":172},{"nombre":"HOME MEGA FIBRA $23","valor":141},{"nombre":"HOME PLUS RADIO $ 25.00","valor":93},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":32},{"nombre":"HOME VIP FIBRA $35","valor":22}],"top_instaladores":[{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":6},{"nombre":"JUAN PABLO CANGA GALARZA","valor":2},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":1}],"top_servidores":[{"nombre":"PRINCIPAL","valor":425},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":19},{"nombre":"CORTADOS_SIN SERVIDOR","valor":18},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":17},{"nombre":"SERVER PPPOE VLAN 10","valor":8}],"top_pago":[{"nombre":"Débito","valor":13},{"nombre":"Oficina","valor":9},{"nombre":"Domicilio","valor":1}]},"2014":{"contratos":904,"clientes":895,"estados":{"Terminado":688,"Activo":122,"Suspendido":50,"Cortado":43,"Pendiente":1},"top_planes":[{"nombre":"HOME BÁSICO RADIO $ 21","valor":315},{"nombre":"HOME PLUS RADIO $ 25.00","valor":239},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":69},{"nombre":"HOME PREMIUM RADIO $ 30","valor":59},{"nombre":"HOME VIP FIBRA $35","valor":46}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":7},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":6},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":2}],"top_servidores":[{"nombre":"PRINCIPAL","valor":649},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":35},{"nombre":"CORTADOS_SIN SERVIDOR","valor":34},{"nombre":"SERVER PPPOE VLAN 10","valor":28},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":25}],"top_pago":[{"nombre":"Oficina","valor":16},{"nombre":"Débito","valor":11}]},"2015":{"contratos":1279,"clientes":1265,"estados":{"Terminado":869,"Activo":224,"Cortado":96,"Suspendido":90},"top_planes":[{"nombre":"HOME BÁSICO RADIO $ 21","valor":585},{"nombre":"HOME PLUS RADIO $ 25.00","valor":191},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":154},{"nombre":"HOME MEGA FIBRA $23","valor":90},{"nombre":"HOME PREMIUM RADIO $ 30","valor":53}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":16},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":10},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":5},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":3}],"top_servidores":[{"nombre":"PRINCIPAL","valor":792},{"nombre":"SERVER PPPOE VLAN 10","valor":70},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":53},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":48},{"nombre":"CORTADOS_SIN SERVIDOR","valor":45}],"top_pago":[{"nombre":"Débito","valor":35},{"nombre":"Oficina","valor":18}]},"2016":{"contratos":1071,"clientes":1057,"estados":{"Terminado":731,"Activo":174,"Cortado":86,"Suspendido":80},"top_planes":[{"nombre":"HOME BÁSICO RADIO $ 21","valor":250},{"nombre":"HOME PLUS RADIO $ 25.00","valor":250},{"nombre":"HOME PREMIUM RADIO $ 30","valor":192},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":89},{"nombre":"HOME VIP FIBRA $35","valor":75}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":163},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":135},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":97},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":31}],"top_servidores":[{"nombre":"PRINCIPAL","valor":675},{"nombre":"SERVER PPPOE VLAN 10","valor":51},{"nombre":"CORTADOS_SIN SERVIDOR","valor":43},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":36},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":30}],"top_pago":[{"nombre":"Débito","valor":831},{"nombre":"Oficina","valor":152}]},"2017":{"contratos":867,"clientes":848,"estados":{"Terminado":518,"Activo":198,"Suspendido":85,"Cortado":66},"top_planes":[{"nombre":"HOME PLUS RADIO $ 25.00","valor":273},{"nombre":"HOME BÁSICO RADIO $ 21","valor":164},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":73},{"nombre":"HOME PREMIUM RADIO $ 30","valor":66},{"nombre":"PLAN 45 MEGAS FIBRA $25","valor":55}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":228},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":168},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":99},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":35}],"top_servidores":[{"nombre":"PRINCIPAL","valor":429},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":37},{"nombre":"SERVER PPPOE VLAN 10","valor":30},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":22},{"nombre":"CORTADOS_SIN SERVIDOR","valor":21}],"top_pago":[{"nombre":"Débito","valor":691},{"nombre":"Oficina","valor":148}]},"2018":{"contratos":904,"clientes":880,"estados":{"Terminado":493,"Activo":225,"Suspendido":104,"Cortado":82},"top_planes":[{"nombre":"HOME PLUS RADIO $ 25.00","valor":299},{"nombre":"HOME BÁSICO RADIO $ 21","valor":97},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":89},{"nombre":"PLAN 45 MEGAS FIBRA $25","valor":81},{"nombre":"HOME PREMIUM RADIO $ 30","valor":70}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":261},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":196},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":118},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":55}],"top_servidores":[{"nombre":"PRINCIPAL","valor":375},{"nombre":"SERVER PPPOE VLAN 10","valor":57},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":48},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":33},{"nombre":"CORTADOS_SIN SERVIDOR","valor":27}],"top_pago":[{"nombre":"Débito","valor":732},{"nombre":"Oficina","valor":147}]},"2019":{"contratos":714,"clientes":686,"estados":{"Terminado":372,"Activo":208,"Suspendido":77,"Cortado":57},"top_planes":[{"nombre":"HOME PLUS RADIO $ 25.00","valor":209},{"nombre":"HOME MEGA FIBRA $23","valor":80},{"nombre":"HOME BÁSICO RADIO $ 21","valor":76},{"nombre":"PLAN 45 MEGAS FIBRA $25","valor":61},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":54}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":239},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":155},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":104},{"nombre":"MARINA ESTACIO VELEZ","valor":41}],"top_servidores":[{"nombre":"PRINCIPAL","valor":243},{"nombre":"SERVER PPPOE VLAN 10","valor":50},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":37},{"nombre":"BIJAGUAL","valor":28},{"nombre":"SERVER KASAMA","valor":27}],"top_pago":[{"nombre":"Débito","valor":542},{"nombre":"Oficina","valor":147}]},"2020":{"contratos":1243,"clientes":1187,"estados":{"Terminado":442,"Activo":415,"Prospecto":150,"Suspendido":119,"Cortado":112,"Fallido":5},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":251},{"nombre":"HOME PLUS RADIO $ 25.00","valor":199},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":168},{"nombre":"HOME BÁSICO RADIO $ 21","valor":111},{"nombre":"PLAN 10 MEGAS FIBRA $21","valor":80}],"top_instaladores":[{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":273},{"nombre":"JUAN PABLO CANGA GALARZA","valor":264},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":204},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":145}],"top_servidores":[{"nombre":"SERVER PPPOE VLAN 10","valor":136},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":58},{"nombre":"PRINCIPAL","valor":56},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":52}],"top_pago":[{"nombre":"Débito","valor":828},{"nombre":"Oficina","valor":275},{"nombre":"Domicilio","valor":84}]},"2021":{"contratos":1442,"clientes":1373,"estados":{"Terminado":548,"Activo":455,"Cortado":189,"Suspendido":123,"Prospecto":108,"Fallido":19},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":396},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":264},{"nombre":"HOME PLUS RADIO $ 25.00","valor":154},{"nombre":"HOME ORO FIBRA $30","valor":93},{"nombre":"GRATIS RADIO","valor":87}],"top_instaladores":[{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":263},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":257},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":248},{"nombre":"JUAN PABLO CANGA GALARZA","valor":210},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":99}],"top_servidores":[{"nombre":"PATRICIA PILAR FO","valor":133},{"nombre":"SERVER PPPOE VLAN 11","valor":101},{"nombre":"SERVER PPPOE SAN JACINTO","valor":77},{"nombre":"SERVER VLAN 9","valor":57}],"top_pago":[{"nombre":"Débito","valor":1033},{"nombre":"Oficina","valor":346},{"nombre":"Domicilio","valor":22}]},"2022":{"contratos":1368,"clientes":1296,"estados":{"Activo":491,"Terminado":464,"Cortado":266,"Suspendido":125,"Prospecto":20,"Fallido":2},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":615},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":262},{"nombre":"HOME ORO FIBRA $30","valor":71},{"nombre":"HOME BÁSICO RADIO $ 21","valor":53},{"nombre":"HOME PLUS RADIO $ 25.00","valor":43}],"top_instaladores":[{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":380},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":258},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":150},{"nombre":"EDISON IÑIGUEZ PANTOJA","valor":109},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":97}],"top_servidores":[{"nombre":"PATRICIA PILAR FO","valor":213},{"nombre":"SERVER PPPOE VLAN 12","valor":130},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":128},{"nombre":"SERVER PPPOE VLAN 10","valor":102},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":98}],"top_pago":[{"nombre":"Débito","valor":757},{"nombre":"Oficina","valor":575}]},"2023":{"contratos":1316,"clientes":1237,"estados":{"Activo":554,"Terminado":364,"Cortado":217,"Suspendido":123,"Prospecto":48,"Fallido":10},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":538},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":228},{"nombre":"GRATIS INSTALACION NUEVA FO","valor":90},{"nombre":"PLAN 3ERA EDAD FO","valor":76},{"nombre":"HOME ORO FIBRA $30","valor":60}],"top_instaladores":[{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":195},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":191},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":179},{"nombre":"JUAN PABLO CANGA GALARZA","valor":167},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":141}],"top_servidores":[{"nombre":"SERVER PPPOE VLAN 10","valor":236},{"nombre":"PATRICIA PILAR FO","valor":136},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":129},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":119},{"nombre":"SERVER KASAMA","valor":76}],"top_pago":[{"nombre":"Débito","valor":696},{"nombre":"Oficina","valor":596}]},"2024":{"contratos":1013,"clientes":914,"estados":{"Activo":625,"Terminado":152,"Cortado":136,"Suspendido":53,"Prospecto":45,"Fallido":2},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":394},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":127},{"nombre":"GRATIS INSTALACION NUEVA FO","valor":117},{"nombre":"HOME PLUS RADIO $ 25.00","valor":47},{"nombre":"GRATIS NODOS CSED FIBRA","valor":46}],"top_instaladores":[{"nombre":"JUAN PABLO CANGA GALARZA","valor":144},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":140},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":140},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":137},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":106}],"top_servidores":[{"nombre":"SERVER PPPOE VLAN 10","valor":201},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":94},{"nombre":"PATRICIA PILAR FO","valor":64},{"nombre":"SERVER KASAMA","valor":63},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":61}],"top_pago":[{"nombre":"Débito","valor":513},{"nombre":"Oficina","valor":487}]},"2025":{"contratos":844,"clientes":770,"estados":{"Activo":637,"Cortado":101,"Terminado":52,"Prospecto":29,"Suspendido":25},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":378},{"nombre":"GRATIS INSTALACION NUEVA FO","valor":92},{"nombre":"PLAN ESTUDIANTIL","valor":71},{"nombre":"HOME PREMIUM FIBRA $ 26","valor":63},{"nombre":"HOME ORO FIBRA $30","valor":43}],"top_instaladores":[{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":142},{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":129},{"nombre":"JUAN PABLO CANGA GALARZA","valor":91},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":89},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":60}],"top_servidores":[{"nombre":"SERVER PPPOE VLAN 10","valor":93},{"nombre":"PATRICIA PILAR FO","valor":84},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":82},{"nombre":"Server Carmen Vlan 10","valor":65},{"nombre":"SERVER PPPOE JUAN EULOGIO","valor":64}],"top_pago":[{"nombre":"Oficina","valor":484},{"nombre":"Débito","valor":345}]},"2026":{"contratos":295,"clientes":283,"estados":{"Activo":264,"Prospecto":17,"Cortado":10,"Terminado":2,"Suspendido":2},"top_planes":[{"nombre":"HOME MEGA FIBRA $23","valor":107},{"nombre":"GRATIS INSTALACION NUEVA FO","valor":79},{"nombre":"PLAN ESTUDIANTIL","valor":20},{"nombre":"HOME BÁSICO RADIO $ 21","valor":12},{"nombre":"HOME PLUS RADIO $ 25.00","valor":12}],"top_instaladores":[{"nombre":"CRISTHIAN TRIVIÑO PEREZ","valor":52},{"nombre":"JUAN PABLO CANGA GALARZA","valor":45},{"nombre":"JONATHAN PAZMIÑO ENCALADA","valor":43},{"nombre":"MARCELO VILLAMAR ZAMBRANO","valor":31},{"nombre":"JOSE LUIS ROJAS DOMINGUEZ","valor":27}],"top_servidores":[{"nombre":"SERVER PPPOE VLAN 10","valor":32},{"nombre":"PATRICIA PILAR FO","valor":29},{"nombre":"SERVER KASAMA","valor":23},{"nombre":"SERVER PPPOE VLAN 10 QUEVEDO","valor":22},{"nombre":"SERVER PPPOE VLAN 11","valor":20}],"top_pago":[{"nombre":"Oficina","valor":172},{"nombre":"Débito","valor":122}]}};
+
+const YEARS = Object.keys(DATA);
+const ESTADO_COLORS = {Activo:'#10b981',Terminado:'#ef4444',Cortado:'#f59e0b',Suspendido:'#6366f1',Prospecto:'#a855f7',Pendiente:'#06b6d4',Fallido:'#64748b'};
+const PAGO_ICONS = {Débito:'💳',Oficina:'🏢',Domicilio:'🏠','Sin dato':'❓'};
+const C = {a1:'#f97316',a2:'#3b82f6',a3:'#10b981',a4:'#a855f7',a5:'#ef4444',a6:'#eab308'};
+
+let activeYear = '2024';
+let chartEstado = null, chartPago = null, chartOverview = null;
+
+// ── build pills ─────────────────────────────────────────────────────────────
+const pillsEl = document.getElementById('pills');
+YEARS.forEach(y => {
+  const p = document.createElement('button');
+  p.className = 'pill' + (y === activeYear ? ' active' : '');
+  p.textContent = y;
+  p.addEventListener('click', () => setYear(y));
+  pillsEl.appendChild(p);
+});
+
+// ── build overview chart (once) ──────────────────────────────────────────────
+function buildOverview() {
+  const vals = YEARS.map(y => DATA[y].contratos);
+  const ctx = document.getElementById('chart-overview').getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,160);
+  grad.addColorStop(0,'rgba(249,115,22,.3)');grad.addColorStop(1,'rgba(249,115,22,0)');
+  chartOverview = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:YEARS,
+      datasets:[{data:vals,borderColor:C.a1,borderWidth:2,fill:true,backgroundColor:grad,
+        pointBackgroundColor:YEARS.map(y=>y===activeYear?'#fff':C.a1),
+        pointRadius:YEARS.map(y=>y===activeYear?6:3),
+        pointBorderColor:YEARS.map(y=>y===activeYear?C.a1:'transparent'),
+        pointBorderWidth:2,tension:.4}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#111520',borderColor:C.a1,borderWidth:1,
+        callbacks:{label:c=>` ${c.parsed.y.toLocaleString()} contratos`}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{family:'JetBrains Mono',size:10},color:'#4b5880'}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{family:'JetBrains Mono',size:10},color:'#4b5880',callback:v=>v.toLocaleString()}}
+      },
+      onClick:(_,els)=>{if(els.length){setYear(YEARS[els[0].index])}}
+    }
+  });
+}
+
+// ── setYear ──────────────────────────────────────────────────────────────────
+function setYear(yr) {
+  activeYear = yr;
+  // pills
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.classList.toggle('active', p.textContent===yr);
+  });
+  // update overview highlight
+  if(chartOverview){
+    chartOverview.data.datasets[0].pointBackgroundColor = YEARS.map(y=>y===yr?'#fff':C.a1);
+    chartOverview.data.datasets[0].pointRadius = YEARS.map(y=>y===yr?6:3);
+    chartOverview.data.datasets[0].pointBorderColor = YEARS.map(y=>y===yr?C.a1:'transparent');
+    chartOverview.update('none');
+  }
+  render(DATA[yr]);
+}
+
+function pct(v,total){return total?Math.round(v/total*100):0}
+function fmt(n){return n.toLocaleString()}
+
+// ── render ───────────────────────────────────────────────────────────────────
+function render(d) {
+  const total = d.contratos;
+  const activos = d.estados.Activo||0;
+  const term = d.estados.Terminado||0;
+
+  // KPIs
+  document.getElementById('kpi-contratos').textContent = fmt(total);
+  document.getElementById('kpi-contratos-sub').textContent = `instalaciones en ${activeYear}`;
+  document.getElementById('kpi-clientes').textContent = fmt(d.clientes);
+  document.getElementById('kpi-activos').textContent = fmt(activos);
+  document.getElementById('kpi-activos-pct').textContent = `${pct(activos,total)}% del año`;
+  document.getElementById('kpi-terminados').textContent = fmt(term);
+  document.getElementById('kpi-terminados-pct').textContent = `${pct(term,total)}% del año`;
+
+  // estados donut
+  const estadoKeys = Object.keys(d.estados);
+  const estadoVals = Object.values(d.estados);
+  if(chartEstado){chartEstado.destroy()}
+  const ctxE = document.getElementById('chart-estado').getContext('2d');
+  chartEstado = new Chart(ctxE,{
+    type:'doughnut',
+    data:{
+      labels:estadoKeys,
+      datasets:[{data:estadoVals,backgroundColor:estadoKeys.map(k=>ESTADO_COLORS[k]||'#64748b'),borderWidth:0,hoverOffset:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#111520',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+        callbacks:{label:c=>` ${c.label}: ${fmt(c.parsed)}`}}}}
+  });
+
+  // estado list
+  const estadoList = document.getElementById('estado-list');
+  estadoList.innerHTML='';
+  estadoKeys.forEach(k=>{
+    const v=d.estados[k];
+    const p=pct(v,total);
+    estadoList.innerHTML+=`
+    <div class="estado-row">
+      <div class="dot" style="background:${ESTADO_COLORS[k]||'#64748b'}"></div>
+      <div class="estado-name">${k}</div>
+      <div class="estado-bg"><div class="estado-fill" style="width:${p}%;background:${ESTADO_COLORS[k]||'#64748b'}"></div></div>
+      <div class="estado-val">${fmt(v)}</div>
+    </div>`;
+  });
+
+  // top planes
+  renderTopList('list-planes', d.top_planes, C.a1, C.a4);
+  // top instaladores
+  renderTopList('list-inst', d.top_instaladores, C.a2, C.a3);
+  // top servidores
+  renderTopList('list-serv', d.top_servidores, C.a4, C.a6);
+
+  // formas de pago
+  const pagoTotal = d.top_pago.reduce((s,p)=>s+p.valor,0);
+  if(chartPago){chartPago.destroy()}
+  const ctxP = document.getElementById('chart-pago').getContext('2d');
+  chartPago = new Chart(ctxP,{
+    type:'doughnut',
+    data:{
+      labels:d.top_pago.map(p=>p.nombre),
+      datasets:[{data:d.top_pago.map(p=>p.valor),
+        backgroundColor:[C.a3,C.a2,C.a1,C.a4,C.a6],borderWidth:0,hoverOffset:6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#111520',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+        callbacks:{label:c=>` ${c.label}: ${fmt(c.parsed)}`}}}}
+  });
+
+  const pagoDetail = document.getElementById('pago-detail');
+  pagoDetail.innerHTML='';
+  const pagoColors=[C.a3,C.a2,C.a1,C.a4];
+  d.top_pago.forEach((p,i)=>{
+    pagoDetail.innerHTML+=`
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${pagoColors[i]||'#64748b'};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--text)">${p.nombre}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted)">${fmt(p.valor)} · ${pct(p.valor,pagoTotal)}%</div>
+      </div>
+    </div>`;
+  });
+}
+
+function renderTopList(id, items, c1, c2) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  if(!items||!items.length){el.innerHTML='<li style="color:var(--muted);font-size:12px;padding:4px 0">Sin datos</li>';return;}
+  const max = items[0].valor;
+  const rankCls = ['r1','r2','r3'];
+  items.forEach((item,i)=>{
+    const w = Math.round(item.valor/max*100);
+    el.innerHTML+=`
+    <li class="top-item">
+      <div class="rank ${rankCls[i]||''}">${String(i+1).padStart(2,'0')}</div>
+      <div class="bar-wrap" style="--bc1:${c1};--bc2:${c2}">
+        <div class="bar-name">${item.nombre}</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${w}%;--bc1:${c1};--bc2:${c2}"></div></div>
+      </div>
+      <div class="bar-val">${fmt(item.valor)}</div>
+    </li>`;
+  });
+}
+
+// init
+buildOverview();
+render(DATA[activeYear]);
+</script>
+</body>
+</html>
